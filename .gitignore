@@ -1,0 +1,24 @@
+# Файл с секретными данными
+.env
+
+# Виртуальное окружение
+.venv/
+venv/
+
+# Логи
+*.log
+bot.log
+admin_panel.log
+
+# Кэш Python
+__pycache__/
+*.pyc
+
+# Файлы, загружаемые пользователями (Django media)
+/admin_panel/media/
+
+# Экспорт заказов
+orders.xlsx
+
+.github/
+.vscode/
