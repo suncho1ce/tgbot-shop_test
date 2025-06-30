@@ -83,14 +83,30 @@ async def fetch_cart(pool, user_id):
     return await pool.fetch(query, user_id)
 
 async def add_to_cart(pool, user_id, product_id, quantity):
-    query = """
+    # Сначала пытаемся найти и "оживить" неактивный товар в корзине.
+    # Это решает проблему дубликатов, когда товар добавляется повторно после удаления.
+    query_revive = """
+        UPDATE shop_cartitem
+        SET quantity = $3, is_active = TRUE, created_at = NOW()
+        WHERE user_id = $1 AND product_id = $2 AND is_active = FALSE
+        RETURNING id, created_at;
+    """
+    revived_item = await pool.fetchrow(query_revive, user_id, product_id, quantity)
+
+    if revived_item:
+        logging.info(f"Revived item {product_id} for user {user_id}")
+        return revived_item
+
+    # Если неактивный товар не найден, используем основную логику
+    # для вставки нового или обновления существующего активного товара.
+    query_insert_or_update = """
         INSERT INTO shop_cartitem (user_id, product_id, quantity, is_active, created_at)
         VALUES ($1, $2, $3, TRUE, NOW())
         ON CONFLICT (user_id, product_id) WHERE (is_active = TRUE)
         DO UPDATE SET quantity = shop_cartitem.quantity + EXCLUDED.quantity
-        RETURNING id, created_at
+        RETURNING id, created_at;
     """
-    return await pool.fetchrow(query, user_id, product_id, quantity)
+    return await pool.fetchrow(query_insert_or_update, user_id, product_id, quantity)
 
 async def update_cart_item_quantity(pool, cartitem_id, user_id, change: int):
     """
@@ -241,6 +257,7 @@ async def get_pending_broadcast(pool):
             FROM shop_broadcast
             WHERE status = 'pending'
             ORDER BY created_at
+            FOR UPDATE SKIP LOCKED
             LIMIT 1
         )
         RETURNING id, message;

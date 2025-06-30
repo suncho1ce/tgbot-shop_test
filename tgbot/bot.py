@@ -40,9 +40,9 @@ async def check_subscription(user_id: int) -> bool:
         member = await bot.get_chat_member(CHANNEL_ID, user_id)
         return member.status in ("member", "administrator", "creator")
     except TelegramBadRequest as e:
-        logging.warning(f"Subscription check failed for user {user_id}: {e}")
-        # Если бот не в канале или канал указан неверно
-        return True # Временно разрешаем доступ, чтобы не блокировать пользователей
+        logging.critical(f"CRITICAL: Subscription check failed due to bad request. Check if bot is admin in the channel {CHANNEL_ID}. Error: {e}")
+        # Если бот не в канале или канал указан неверно, доступ не предоставляем.
+        return False
     except Exception as e:
         logging.error(f"Unexpected error in subscription check for user {user_id}: {e}")
         return False
